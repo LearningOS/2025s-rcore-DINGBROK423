@@ -38,10 +38,21 @@ jobs:
           override: true
           components: rust-src, llvm-tools-preview
           
-      - name: Add riscv64 target & std
+      # - name: Add riscv64 target & std
+      #   run: |
+      #     rustup target add riscv64gc-unknown-none-elf
+      #     rustup component add rust-std --toolchain nightly --target riscv64gc-unknown-none-elf
+      # 2. 安装 riscv64 target
+      - name: Add riscv64 target
+        run: rustup target add riscv64gc-unknown-none-elf
+
+      # 3. 预先用 build-std 从源码编译 core/alloc 等库
+      - name: Pre-build core/std for riscv64
         run: |
-          rustup target add riscv64gc-unknown-none-elf
-          rustup component add rust-std --toolchain nightly --target riscv64gc-unknown-none-elf
+          cargo +nightly build \
+            -Z build-std=core,alloc,compiler_builtins \
+            --target riscv64gc-unknown-none-elf \
+            --release
 
       - name: Remove Cargo proxy config
         run: |
