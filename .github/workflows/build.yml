@@ -31,16 +31,17 @@ jobs:
     container:
       image: duskmoon/dev-env:rcore-ci
     steps:
-      - name: Setup Rust 1.82.0
+      - name: Setup Rust nightly & components
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.82.0
+          toolchain: nightly
           override: true
           components: rust-src, llvm-tools-preview
           
-      - name: Add riscv64 target
+      - name: Add riscv64 target & std
         run: |
           rustup target add riscv64gc-unknown-none-elf
+          rustup component add rust-std --toolchain nightly --target riscv64gc-unknown-none-elf
 
       - name: Remove Cargo proxy config
         run: |
