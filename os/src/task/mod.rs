@@ -14,7 +14,7 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
-use crate::config::MAX_APP_NUM;
+use crate::config::{MAX_APP_NUM, MAX_SYSCALL_NUM};
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
 use lazy_static::*;
@@ -68,6 +68,14 @@ lazy_static! {
                 })
             },
         }
+    };
+}
+
+lazy_static! {
+    /// Global counter for syscall invocations, organized as 
+    /// a 2D array indexed by [task_id][syscall_id]
+    pub static ref SYSCALL_COUNTS: UPSafeCell<[[usize; MAX_SYSCALL_NUM]; MAX_APP_NUM]> = unsafe {
+        UPSafeCell::new([[0; MAX_SYSCALL_NUM]; MAX_APP_NUM])  // trap/config.rs设置了MAX_SYSCALL_NUM,设置大点，否则会报错
     };
 }
 
@@ -134,6 +142,13 @@ impl TaskManager {
         } else {
             panic!("All applications completed!");
         }
+    }
+    /// Returns the ID of the current running task
+    pub fn current_task(&self) -> usize {
+        let inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        drop(inner);
+        current
     }
 }
 

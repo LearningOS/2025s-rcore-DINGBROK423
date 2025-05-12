@@ -38,8 +38,38 @@ pub fn sys_get_time(ts: *mut TimeVal, _tz: usize) -> isize {
     0
 }
 
-// TODO: implement the syscall
+use crate::task::TASK_MANAGER;
+use crate::task::SYSCALL_COUNTS;
+// 实现系统调用
 pub fn sys_trace(_trace_request: usize, _id: usize, _data: usize) -> isize {
     trace!("kernel: sys_trace");
-    -1
+    match _trace_request {
+        0=> {
+            let target_addr = _id as *const u8;
+            let byte_value = unsafe { *target_addr };
+            
+            println!("trace request: 0, read value {} from address 0x{:x}", byte_value, _id);
+            byte_value as isize
+        }
+        1=> {
+            let target_addr = _id as *mut u8;  
+            let byte_value = (_data & 0xff) as u8;
+            unsafe{*target_addr = byte_value};
+            println!("trace request: 1, wrote value {} to address 0x{:x}", byte_value, _id);
+            0
+        }
+        2=> {
+            let syscall_id = _id;
+            let current_task = TASK_MANAGER.current_task();
+            let counts = SYSCALL_COUNTS.exclusive_access();
+            let call_count = counts[current_task][syscall_id];
+            println!("trace request: 2, syscall {} called {} times by task {}", 
+                     syscall_id, call_count, current_task);
+            call_count as isize
+        }
+        _ => {
+            println!("error: invalid trace request");
+            -1
+        }
+    }
 }
