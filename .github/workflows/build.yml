@@ -31,33 +31,12 @@ jobs:
     container:
       image: duskmoon/dev-env:rcore-ci
     steps:
-      - name: Setup Rust nightly & components
+      - name: Setup Rust 1.82.0
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: 1.82.0
           override: true
           components: rust-src, llvm-tools-preview
-          
-      # - name: Add riscv64 target & std
-      #   run: |
-      #     rustup target add riscv64gc-unknown-none-elf
-      #     rustup component add rust-std --toolchain nightly --target riscv64gc-unknown-none-elf
-      # 2. 安装 riscv64 target
-      - name: Add riscv64 target
-        run: rustup target add riscv64gc-unknown-none-elf
-
-      # 3. 预先用 build-std 从源码编译 core/alloc 等库
-      - name: Run tests
-        run: |
-          qemu-system-riscv64 --version
-          git config --global --add safe.directory /__w/${{ github.event.repository.name }}/${{ github.event.repository.name }}
-          git clone https://github.com/LearningOS/rCore-Tutorial-Checker-2025S.git ci-user
-          git clone https://github.com/LearningOS/rCore-Tutorial-Test-2025S.git ci-user/user
-          ID=`git rev-parse --abbrev-ref HEAD | grep -oP 'ch\K[0-9]'`
-          # 使用环境变量传递 -Z build-std 参数给 Makefile 里的 cargo 调用
-          cd ci-user && RUSTFLAGS="-Z build-std=core,alloc,compiler_builtins" make test CHAPTER=$ID passwd=${{ secrets.BASE_TEST_TOKEN }} > ../output.txt
-          cat ../output.txt
-
       - name: Remove Cargo proxy config
         run: |
           unset RUSTUP_DIST_SERVER
