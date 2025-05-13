@@ -31,21 +31,28 @@ jobs:
     container:
       image: duskmoon/dev-env:rcore-ci
     steps:
-      - name: Setup Rust 1.82.0
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: 1.82.0
-          override: true
-          components: rust-src, llvm-tools-preview
       - name: Remove Cargo proxy config
         run: |
           unset RUSTUP_DIST_SERVER
           unset RUSTUP_UPDATE_ROOT
           unset CARGO_HTTP_MULTIPLEXING
           # 删除或重置全局配置
-          rm ${CARGO_HOME}/config.toml || true
-          rm -rf rm ${CARGO_HOME}/registry/* || true
+          rm -f ${CARGO_HOME}/config.toml || true
+          rm -rf ${CARGO_HOME}/registry/* || true
+      - name: Update Rust toolchain
+        run: |
+          rustup self update
+          rustup update nightly
+          rustup default nightly
+      - name: Install cargo-binutils
+        run: |
+          cargo install cargo-binutils
       - uses: actions/checkout@v4
+      - name: Print Cargo source info
+        run: |
+          echo "==== Print Cargo source info ===="
+          cargo search test -v || echo "cargo search failed"
+          echo "==== End Cargo source info ===="
       - name: Run tests
         run: |
           qemu-system-riscv64 --version
