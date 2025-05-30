@@ -105,6 +105,7 @@ pub fn rust_main() -> ! {
     trap::init();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
+    syscall::init_syscall_tracking();
     task::run_first_task();
     panic!("Unreachable in rust_main!");
 }
