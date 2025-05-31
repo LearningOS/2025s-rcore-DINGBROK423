@@ -1,4 +1,4 @@
-//! Implementation of syscalls
+   //! Implementation of syscalls
 //!
 //! The single entry point to all system calls, [`syscall()`], is called
 //! whenever userspace wishes to perform a system call using the `ecall`
@@ -24,13 +24,14 @@ const SYSCALL_MUNMAP: usize = 215;
 const SYSCALL_MMAP: usize = 222;
 /// trace syscall
 const SYSCALL_TRACE: usize = 410;
-
+/// gettimeofday syscall
+pub const SYSCALL_GETTIMEOFDAY: usize = 169;
 mod fs;
 mod process;
 
 use fs::*;
 use process::*;
-pub use process::{init_syscall_counter, increment_syscall};
+pub use process::{init_syscall_counter, increment_syscall, count_syscall};
 /// handle syscall exception with `syscall_id` and other arguments
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
     increment_syscall(syscall_id);
