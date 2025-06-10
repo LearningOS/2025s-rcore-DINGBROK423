@@ -3,12 +3,12 @@ use alloc::sync::Arc;
 
 use crate::{
     loader::get_app_data_by_name,
-    mm::{translated_refmut, translated_str, translated_byte_buffer},
+    mm::{translated_refmut, translated_str, translated_byte_buffer,MapPermission,VirtAddr,PageTableEntry},
     task::{
         add_task, current_task, current_user_token, exit_current_and_run_next,
         suspend_current_and_run_next,
     },
-    timer::get_time_us,
+    timer::get_time_us, config::PAGE_SIZE,
 };
 
 #[repr(C)]
@@ -107,10 +107,10 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
 /// HINT: You might reimplement it with virtual memory management.
 /// HINT: What if [`TimeVal`] is splitted by two pages ?
 pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
-    // trace!(
-    //     "kernel:pid[{}] sys_get_time NOT IMPLEMENTED",
-    //     current_task().unwrap().pid.0
-    // );
+    trace!(
+        "kernel:pid[{}] sys_get_time NOT IMPLEMENTED",
+        current_task().unwrap().pid.0
+    );
     let us=get_time_us();
     let sec =us / 1_000_000;
     let usec = us % 1_000_000;
@@ -133,7 +133,7 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
            break;
         }
     }
-    -1
+    0
 }
 
 /// YOUR JOB: Implement mmap.
@@ -142,16 +142,52 @@ pub fn sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
         "kernel:pid[{}] sys_mmap NOT IMPLEMENTED",
         current_task().unwrap().pid.0
     );
-    -1
+    if _start % PAGE_SIZE != 0 { // 如果虚拟地址没有按页对齐直接失败
+        return -1;
+    }
+    if _port & !0x7 != 0 { // _prot 其余位必须为 0
+        return -1;
+    }
+    if _port & 0x7 == 0 { // 这样的内存无意义
+        return -1;
+    }
+    let num_pages = (_len + PAGE_SIZE - 1) / PAGE_SIZE; // page 数向上取整
+    let mut map_perm: MapPermission = MapPermission::U; // MapPermission::V 会在 page_table 的 map 中被加上
+    if _port & 0x1 != 0 { // read
+        map_perm |= MapPermission::R;
+    }
+    if _port & 0x2 != 0 { // write
+        map_perm |= MapPermission::W;
+    }
+    if _port & 0x4 != 0 { // execute
+        map_perm |= MapPermission::X;
+    }
+    let vpn = VirtAddr::from(_start).floor();
+    match map_for_current_task(vpn, num_pages, map_perm) {
+        0 => {
+            return 0;
+        },
+        _ => {
+            return -1;
+        }
+    };
 }
 
 /// YOUR JOB: Implement munmap.
 pub fn sys_munmap(_start: usize, _len: usize) -> isize {
-    trace!(
-        "kernel:pid[{}] sys_munmap NOT IMPLEMENTED",
-        current_task().unwrap().pid.0
-    );
-    -1
+    if _start % PAGE_SIZE != 0 { // 如果虚拟地址没有按页对齐直接失败
+        return -1;
+    }
+    let num_pages = (_len + PAGE_SIZE - 1) / PAGE_SIZE; // page 数向上取整
+    let vpn = VirtAddr::from(_start).floor();
+    match unmap_for_current_task(vpn, num_pages) {
+        0 => {
+            return 0;
+        },
+        _ => {
+            return -1;
+        },
+    };
 }
 
 /// change data segment size
