@@ -6,7 +6,7 @@ use crate::{
     mm::{translated_refmut, translated_str, translated_byte_buffer,MapPermission,VirtAddr,PageTableEntry},
     task::{
         add_task, current_task, current_user_token, exit_current_and_run_next,
-        suspend_current_and_run_next,
+        suspend_current_and_run_next,map_for_current_task, unmap_for_current_task,
     },
     timer::get_time_us, config::PAGE_SIZE,
 };
