@@ -204,6 +204,12 @@ impl StepByOne for VirtPageNum {
     }
 }
 
+impl StepByOne for PhysPageNum {
+    fn step(&mut self) {
+        self.0 += 1;
+    }
+}
+
 #[derive(Copy, Clone)]
 /// a simple range structure for type T
 pub struct SimpleRange<T>
@@ -217,13 +223,16 @@ impl<T> SimpleRange<T>
 where
     T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
 {
+    /// Create a new simple range with start and end
     pub fn new(start: T, end: T) -> Self {
         assert!(start <= end, "start {:?} > end {:?}!", start, end);
         Self { l: start, r: end }
     }
+    /// Create a new simple range with start and end, inclusive
     pub fn get_start(&self) -> T {
         self.l
     }
+    /// Create a new simple range with start and end, inclusive
     pub fn get_end(&self) -> T {
         self.r
     }
@@ -250,6 +259,7 @@ impl<T> SimpleRangeIterator<T>
 where
     T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
 {
+    /// Create a new simple range iterator with start and end
     pub fn new(l: T, r: T) -> Self {
         Self { current: l, end: r }
     }
@@ -259,6 +269,7 @@ where
     T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
 {
     type Item = T;
+    /// Get the next element in the range
     fn next(&mut self) -> Option<Self::Item> {
         if self.current == self.end {
             None

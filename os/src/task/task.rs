@@ -68,6 +68,12 @@ pub struct TaskControlBlockInner {
 
     /// Program break
     pub program_brk: usize,
+
+    /// The number of pages allocated for the user stack
+    pub stride: usize,
+
+    /// The priority of the task, used for scheduling
+    pub priority: usize,
 }
 
 impl TaskControlBlockInner {
@@ -118,6 +124,8 @@ impl TaskControlBlock {
                     exit_code: 0,
                     heap_bottom: user_sp,
                     program_brk: user_sp,
+                    stride: 0,
+                    priority: 16,
                 })
             },
         };
@@ -191,6 +199,8 @@ impl TaskControlBlock {
                     exit_code: 0,
                     heap_bottom: parent_inner.heap_bottom,
                     program_brk: parent_inner.program_brk,
+                    stride: parent_inner.stride,
+                    priority: parent_inner.priority,
                 })
             },
         });

@@ -20,14 +20,15 @@ mod processor;
 mod switch;
 #[allow(clippy::module_inception)]
 mod task;
-use crate::task::manager::TASK_MANAGER;
+// use crate::task::manager::TASK_MANAGER;
 use crate::loader::get_app_data_by_name;
 use alloc::sync::Arc;
 use lazy_static::*;
 pub use manager::{fetch_task, TaskManager};
 use switch::__switch;
 pub use task::{TaskControlBlock, TaskStatus};
-pub use crate::mm::{MapPermission, VirtAddr, VirtPageNum, StepByOne};
+pub use crate::mm::{MapPermission, VirtAddr, VirtPageNum};
+use crate::mm::address::StepByOne;
 pub use context::TaskContext;
 pub use id::{kstack_alloc, pid_alloc, KernelStack, PidHandle};
 pub use manager::add_task;
@@ -116,13 +117,12 @@ pub fn add_initproc() {
     add_task(INITPROC.clone());
 }
 
+/// Map a new area for the current task
 pub fn map_for_current_task(start_vpn: VirtPageNum, num_pages: usize, map_perm: MapPermission) -> isize {
-    let task_id = current_task().unwrap().getpid();
-    let task_manager = TASK_MANAGER.exclusive_access();
-    let memory_set = if let Some(task) = task_manager.get_mut(task_id) {&mut task.memory_set
-    } else {
-        return -1; // 如果任务不存在，返回错误
-    };
+    let task = current_task().unwrap();
+    let mut inner = task.inner_exclusive_access();
+    let memory_set = &mut inner.memory_set;
+    
     let mut end_vpn = start_vpn;
     for _ in 0..num_pages {
         if let Some(pte) = memory_set.translate(end_vpn) {
@@ -141,13 +141,10 @@ pub fn map_for_current_task(start_vpn: VirtPageNum, num_pages: usize, map_perm: 
 
 ///
 pub fn unmap_for_current_task(start_vpn: VirtPageNum, num_pages: usize) -> isize {
-    let task_id = current_task().unwrap().getpid();
-    let task_manager = TASK_MANAGER.exclusive_access();
-    let memory_set = if let Some(task) = task_manager.get_mut(task_id) {
-        &mut task.memory_set
-    } else {
-        return -1; // 如果任务不存在，返回错误
-    };
+    let task = current_task().unwrap();
+    let mut inner = task.inner_exclusive_access();
+    let memory_set = &mut inner.memory_set;
+    
     let mut end_vpn = start_vpn;
     for _ in 0..num_pages {
         if let Some(pte) = memory_set.translate(end_vpn) {

@@ -72,6 +72,17 @@ impl MemorySet {
             self.areas.remove(idx);
         }
     }
+    /// Unmap a virtual page number from the page table.
+    pub fn unmap_from_page_table(&mut self, vpn: VirtPageNum) {
+        // 确保页表存在该映射
+        if let Some(pte) = self.translate(vpn) {
+            if pte.is_valid() {
+                // 根据注释，我们只从页表中移除映射
+                // 页表操作，取消该虚拟页号的映射
+                self.page_table.unmap(vpn);
+            }
+        }
+    }
     /// Add a new MapArea into this MemorySet.
     /// Assuming that there are no conflicts in the virtual address
     /// space.

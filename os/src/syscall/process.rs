@@ -3,7 +3,7 @@ use alloc::sync::Arc;
 
 use crate::{
     loader::get_app_data_by_name,
-    mm::{translated_refmut, translated_str, translated_byte_buffer,MapPermission,VirtAddr,PageTableEntry},
+    mm::{translated_refmut, translated_str, translated_byte_buffer,MapPermission,VirtAddr},
     task::{
         add_task, current_task, current_user_token, exit_current_and_run_next,
         suspend_current_and_run_next,map_for_current_task, unmap_for_current_task,
@@ -108,7 +108,7 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
 /// HINT: What if [`TimeVal`] is splitted by two pages ?
 pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
     trace!(
-        "kernel:pid[{}] sys_get_time NOT IMPLEMENTED",
+        "kernel:pid[{}] sys_get_time",
         current_task().unwrap().pid.0
     );
     let us=get_time_us();
@@ -123,7 +123,7 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
             time_val_size
         )
     };
-    let buffers = translated_byte_buffer(token, _tz as *const u8 , time_val_size);
+    let buffers = translated_byte_buffer(token, _ts as *const u8, time_val_size);
     let mut total_len=0;
     for buffer in buffers{
         let len = buffer.len().min(time_val_size - total_len);
@@ -202,13 +202,34 @@ pub fn sys_sbrk(size: i32) -> isize {
 
 /// YOUR JOB: Implement spawn.
 /// HINT: fork + exec =/= spawn
+use crate::task::TaskControlBlock;
 pub fn sys_spawn(_path: *const u8) -> isize {
     trace!(
-        "kernel:pid[{}] sys_spawn NOT IMPLEMENTED",
+        "kernel:pid[{}] sys_spawn",
         current_task().unwrap().pid.0
     );
-    -1
+    let token = current_user_token();
+    let path = translated_str(token, _path);
+    if let Some(data) = get_app_data_by_name(path.as_str()) {
+        // 创建新进程
+        let new_task = Arc::new(TaskControlBlock::new(data));
+        let new_pid = new_task.pid.0;
+        // 将新进程设置为当前进程的子进程
+        let current = current_task().unwrap();
+        let mut current_inner = current.inner_exclusive_access();
+        let mut new_inner = new_task.inner_exclusive_access();
+        new_inner.parent = Some(Arc::downgrade(&current));
+        current_inner.children.push(new_task.clone());
+        drop(new_inner);
+        drop(current_inner);
+        // 添加新进程到调度器
+        add_task(new_task);
+        new_pid as isize
+    } else {
+        -1
+    }
 }
+
 
 // YOUR JOB: Set task priority.
 pub fn sys_set_priority(_prio: isize) -> isize {
@@ -216,5 +237,11 @@ pub fn sys_set_priority(_prio: isize) -> isize {
         "kernel:pid[{}] sys_set_priority NOT IMPLEMENTED",
         current_task().unwrap().pid.0
     );
-    -1
+    if _prio < 2 {
+        return -1;
+    }
+    let task = current_task().unwrap();
+    let mut inner = task.inner_exclusive_access();
+    inner.priority = _prio as usize;
+    _prio
 }
